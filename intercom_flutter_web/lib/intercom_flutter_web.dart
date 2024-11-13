@@ -20,13 +20,16 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
     IntercomFlutterPlatform.instance = IntercomFlutterWeb();
   }
 
+  /// Added this one
+  static String userHashGlobal = '';
+
   @override
   Stream<dynamic> getUnreadStream() {
     // It's fine to let the StreamController be garbage collected once all the
     // subscribers have cancelled; this analyzer warning is safe to ignore.
     // ignore: close_sinks
     StreamController<dynamic> _unreadController =
-        StreamController<dynamic>.broadcast();
+    StreamController<dynamic>.broadcast();
     _unreadController.onListen = () {
       globalContext.callMethod(
         'Intercom'.toJS,
@@ -40,8 +43,7 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
   }
 
   @override
-  Future<void> initialize(
-    String appId, {
+  Future<void> initialize(String appId, {
     String? androidApiKey,
     String? iosApiKey,
   }) async {
@@ -49,7 +51,7 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
       // Intercom script is not added yet
       // Inject it from here in the body
       web.HTMLScriptElement script =
-          web.document.createElement("script") as web.HTMLScriptElement;
+      web.document.createElement("script") as web.HTMLScriptElement;
       script.text = """
           window.intercomSettings = ${updateIntercomSettings('app_id', "'$appId'")};
           (function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){ic('reattach_activator');ic('update',w.intercomSettings);}else{var d=document;var i=function(){i.c(arguments);};i.q=[];i.c=function(args){i.q.push(args);};w.Intercom=i;var l=function(){var s=d.createElement('script');s.type='text/javascript';s.async=true;s.src='https://widget.intercom.io/widget/' + '$appId';var x=d.getElementsByTagName('script')[0];x.parentNode.insertBefore(s, x);};if(document.readyState==='complete'){l();}else if(w.attachEvent){w.attachEvent('onload',l);}else{w.addEventListener('load',l,false);}}})();  
@@ -70,6 +72,9 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
 
   @override
   Future<void> setUserHash(String userHash) async {
+    /// Added this one
+    userHashGlobal = userHash;
+
     globalContext.callMethod(
       'Intercom'.toJS,
       'update'.toJS,
@@ -93,7 +98,7 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
       globalContext.callMethod(
         'Intercom'.toJS,
         'update'.toJS,
-        {'user_id': userId}.jsify(),
+        {'user_id': userId, 'user_hash': userHashGlobal}.jsify(),
       );
       // send the success callback only as web does not support the statusCallback.
       statusCallback?.onSuccess?.call();
@@ -102,7 +107,7 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
       globalContext.callMethod(
         'Intercom'.toJS,
         'update'.toJS,
-        {'email': email}.jsify(),
+        {'email': email, 'user_hash': userHashGlobal}.jsify(),
       );
       // send the success callback only as web does not support the statusCallback.
       statusCallback?.onSuccess?.call();
@@ -113,8 +118,7 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
   }
 
   @override
-  Future<void> loginUnidentifiedUser(
-      {IntercomStatusCallback? statusCallback}) async {
+  Future<void> loginUnidentifiedUser({IntercomStatusCallback? statusCallback}) async {
     // to register an unidentified user, a unique id will be created using the package uuid
     String userId = Uuid().v1();
     globalContext.callMethod(
@@ -177,6 +181,10 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
 
     if (language != null) {
       userAttributes['language_override'] = language;
+    }
+
+    if (userHashGlobal.isNotEmpty) {
+      userAttributes['user_hash'] = userHashGlobal;
     }
 
     globalContext.callMethod(
@@ -294,9 +302,11 @@ class IntercomFlutterWeb extends IntercomFlutterPlatform {
 
   /// get the [window.intercomSettings]
   Map<dynamic, dynamic> getIntercomSettings() {
-    if (globalContext.hasProperty('intercomSettings'.toJS).toDart) {
+    if (globalContext
+        .hasProperty('intercomSettings'.toJS)
+        .toDart) {
       var settings =
-          globalContext.getProperty('intercomSettings'.toJS).dartify();
+      globalContext.getProperty('intercomSettings'.toJS).dartify();
       // settings are of type LinkedMap<Object?, Object?>
       return settings as Map;
     }
